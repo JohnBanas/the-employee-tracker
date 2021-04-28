@@ -7,13 +7,13 @@ VALUES
 
 INSERT INTO role (title, salary, department_id)
 VALUES
-('Sales Team Member', 4500000, 1),
-('Sales Team Lead', 6500000, 1),
-('Software Engineer', 7500000, 2),
+('Sales Team Member', 45000, 1),
+('Sales Team Lead', 65000, 1),
+('Software Engineer', 75000, 2),
 ('Senior Software Engineer', 9500000, 2),
-('Accountant', 5500000, 3),
-('Account Manager', 8500000, 3),
-('Human Resources', 6500000, 4);
+('Accountant', 55000, 3),
+('Account Manager', 85000, 3),
+('Human Resources', 65000, 4);
 
 INSERT INTO employee (first_name, last_name, role_id, manager_id)
 VALUES
