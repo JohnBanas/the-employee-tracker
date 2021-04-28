@@ -25,4 +25,3 @@ CREATE TABLE employee (
   manager_id INTEGER,
   CONSTRAINT fk_role FOREIGN KEY (role_id) REFERENCES role(id) 
 );
-
