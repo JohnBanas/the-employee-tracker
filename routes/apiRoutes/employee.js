@@ -166,7 +166,7 @@ router.delete('/employee/:id', (req, res) => {
   });
 });
 
-//update employees role
+//update employees role 
 router.put(`/employee/:id`, ({body}, res) => {
   const sql = `UPDATE employee
   SET role_id = ?
