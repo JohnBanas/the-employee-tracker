@@ -3,20 +3,7 @@ const router = express.Router();
 const db = require('../../db/connection');
 
 //get all employees
-router.get('/employee', (req, res) => {
-  const sql = `SELECT * FROM employee`
-  db.query(sql, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(
-      {
-        message: 'Success!',
-        data: rows
-      })
-  });
-});
+
 
 //get employees by manager
 router.get('/employee/manager/:id', (req, res) => {
