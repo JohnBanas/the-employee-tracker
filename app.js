@@ -6,6 +6,7 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 const db = require('./db/connection');
+const { response } = require('express');
 
 
 
@@ -39,10 +40,10 @@ const mainMenu = () => {
           addDepartment();
           break;
         case 'Add a new role please.':
-          addRole();
+          addRoles();
           break;
         case 'How about we create a new employee?':
-          console.log('create employee');
+          addEmployee();
           break;
         case 'May I change an employee role, please?':
           console.log('change employee role');
@@ -72,8 +73,8 @@ const viewDept = () => {
 //view all roles, table with job title, role id, 
 //the department that role belongs to, and the salary for that role
 const viewRoles = () => {
-  const sql = `SELECT role.id AS Work_Id, role.title AS Job_Title, role.salary AS Salary, department.name AS Department_Name
-  FROM role LEFT JOIN department ON role.department_id = department.id `
+  const sql = `SELECT roles.id AS Work_Id, roles.title AS Job_Title, roles.salary AS Salary, department.name AS Department_Name
+  FROM roles LEFT JOIN department ON roles.department_id = department.id `
   db.query(sql, (err, rows) => {
     if (err) {
       console.log(err);
@@ -87,21 +88,22 @@ const viewRoles = () => {
 //view all employees, table with employee data, including employee ids, first names, 
 //last names, job titles, departments, salaries, and managers that the employees report to
 const viewEmployees = () => {
-  const sql = `SELECT employee.id AS Employee_ID, employee.first_name AS First_Name, employee.last_name AS Last_Name, role.title AS Job_Title, 
-  role.salary AS Salary, department.name AS Department_Name, CONCAT(e.first_name, ' ' ,e.last_name) AS Manager_Name
-  FROM employee INNER JOIN role ON role.id = employee.role_id
-  INNER JOIN department ON department.id = role.department_id
-  LEFT JOIN employee e ON employee.manager_id = e.id`
+  const sql = `SELECT employee.id AS Employee_ID, employee.first_name AS First_Name, employee.last_name AS Last_Name, roles.title AS Job_Title, 
+  roles.salary AS Salary, department.name AS Department_Name, CONCAT(e.first_name, ' ' ,e.last_name) AS Manager_Name
+  FROM employee INNER JOIN roles ON roles.id = employee.roles_id
+  INNER JOIN department ON department.id = roles.department_id
+  LEFT JOIN employee e ON employee.manager_id = e.id`;
   db.query(sql, (err, res) => {
     if (err) {
       console.log(err);
       return;
     }
     console.table(res);
-    mainMenu();
-
+    return;
   });
+  mainMenu();
 };
+
 
 //add department, prompts enter the name of the department and that department is added to the database
 //show table from view all departments with new data
@@ -138,12 +140,13 @@ const addDepartment = () => {
 //add role, prompted to enter the name, salary, and department for the role and 
 //that role is added to the database
 //show table with roles to show new role added to database
-const addRole = () => {
+const addRoles = () => {
   db.query('SELECT * FROM department', (err, res) => {
     if (err) {
       console.log(err);
       return;
     } else {
+      //returns current departments and id numbers in inquirer prompt
       deptArr = Object.values(JSON.parse(JSON.stringify(res)));
       deptArr = JSON.stringify(deptArr);
       deptArr = deptArr.replace(/\{|\}/g, '', /\(|\)/g, '');
@@ -152,7 +155,7 @@ const addRole = () => {
       deptArr = deptArr.replace(/"/g, '');
       deptArr = deptArr.replace(/:/g, ' ');
     }
-    
+
     inquirer.prompt([
       {
         type: 'input',
@@ -186,7 +189,7 @@ const addRole = () => {
         name: 'department_id'
       }
     ]).then(body => {
-      const sql = `INSERT INTO role (title, salary, department_id)
+      const sql = `INSERT INTO roles (title, salary, department_id)
     VALUES (?,?,?)`;
       const params = [body.title, body.salary, body.department_id];
       db.query(sql, params, (err, res) => {
@@ -198,6 +201,124 @@ const addRole = () => {
       });
     })
   });
+};
+
+//add employee, prompted to enter the employee’s first name, last name, role, and 
+//manager for employee and that employee is added to the database
+//show table view all employees to show new employee added
+const addEmployee = () => {
+
+  //employee array to select a employee manager from
+  let employeeArr = [];
+  //database query to get employee id and name
+  db.query(`SELECT CONCAT(employee.id, ' ',employee.first_name, ' ',employee.last_name) AS 'Employee_ID' FROM employee;`,
+    (err, res) => {
+      if (err) {
+        console.log(err);
+      }
+
+      res = Object.values(JSON.parse(JSON.stringify(res)));
+      //add option to have no manager
+      res.push(
+        {
+          Employee_ID: '0 No Manager'
+        }
+      );
+      //push all employees to array
+      for (i = 0; i < res.length; i++) {
+        res[i].Employee_ID;
+        JSON.stringify(res[i].Employee_ID);
+        employeeArr.push(res[i].Employee_ID);
+      }
+
+      //for role selection
+      let employeeRoleArr = [];
+      db.query(`SELECT CONCAT(roles.id, ' ',roles.title) AS 'Employee_Role FROM roles;'`,
+        (err, ans) => {
+          if (err) {
+            console.log(err);
+          }
+          ans = Object.values(JSON.parse(JSON.stringify(ans)));
+          for (j = 0; j < ans.length; j++){
+            ans[j].Employee_Role;
+            JSON.stringify(ans[j].Employee_Role);
+            employeeRoleArr.push(ans[j].Employee_Role);
+          }
+          console.log(employeeRoleArr);
+          inquirer.prompt([
+            {
+              type: 'input',
+              message: 'What is the first name of the employee?',
+              name: 'first_name',
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please enter a first name for the new employee.');
+                  return false;
+                }
+              }
+            },
+            {
+              type: 'input',
+              message: 'What is the last name of the new employee?',
+              name: 'last_name',
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please enter the last name of the new employee.')
+                  return false;
+                }
+              }
+            },
+            {
+              type: 'input',
+              message: 'Please choose a role for your employee by selecting a role id number.',
+              name: 'role_id',
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please enter a role id number.');
+                  return false;
+                }
+              }
+
+            },
+            {
+              type: 'list',
+              message: 'Please select your employee`s manager.',
+              name: 'manager_id',
+              choices: employeeArr,
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please enter a manager`s employee id number.');
+                  return false;
+                }
+              }
+            }
+
+          ]).then(body => {
+            body.manager_id = body.manager_id.charAt(0);
+            if (body.manager_id = '0') {
+              body.manager_id = 'null';
+            }
+            //         const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
+            // VALUES (?,?,?,?)`;
+            //         const params = [body.first_name, body.last_name, body.role_id, body.manager_id];
+            //         db.query(sql, params, (err, result) => {
+            //           if (err) {
+            //             console.log(err);
+            //             return;
+            //           }
+            //           viewEmployees();
+            //         });
+          })
+        })
+    })
 };
 
 
@@ -216,13 +337,9 @@ module.exports = { mainMenu, viewDept };
 
 
 
-//add role, prompted to enter the name, salary, and department for the role and 
-//that role is added to the database
-//show table with roles to show new role added to database
 
-//add employee, prompted to enter the employee’s first name, last name, role, and 
-//manager for employee and that employee is added to the database
-//show table view all employees to show new employee added
+
+
 
 //update employee role, prompted to enter the employee’s first name, 
 //last name, role, and manager and that employee is added to the database

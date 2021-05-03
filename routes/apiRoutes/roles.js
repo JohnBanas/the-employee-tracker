@@ -8,8 +8,8 @@ const db = require('../../db/connection');
 
 
 //delete role 
-router.delete('/role/:id', (req, res) => {
-  const sql = `DELETE FROM role WHERE id = ?`
+router.delete('/roles/:id', (req, res) => {
+  const sql = `DELETE FROM roles WHERE id = ?`
   const params = [req.params.id];
   db.query(sql, params, (err, result) => {
     if (err) {

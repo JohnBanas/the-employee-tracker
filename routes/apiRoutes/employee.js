@@ -36,14 +36,14 @@ router.get('/employee/department/:id', (req, res) => {
       return
     } else {
       params = [depart[0].id];
-      sql = `SELECT * FROM role WHERE department_id = ?`;
+      sql = `SELECT * FROM roles WHERE department_id = ?`;
       db.query(sql, params, (err, role) => {
         if (err) {
-          res.json('No role found for that department.');
+          res.json('No roles found for that department.');
           return;
         }
         params = [role[0].id];
-        sql = `SELECT * FROM employee WHERE role_id = ?`;
+        sql = `SELECT * FROM employee WHERE roles_id = ?`;
         db.query(sql, params, (err, rows) => {
           if (err) {
             res.json('No employees found.');
@@ -66,12 +66,12 @@ router.get('/employee/department/:id', (req, res) => {
 router.get('/budget/:id', (req, res) => {
   let params = [req.params.id];
   let sql = `SELECT department.id,
-  role.salary,
-  employee.role_id,
-  role.department_id
+  roles.salary,
+  employee.roles_id,
+  roles.department_id
   FROM department
-  INNER JOIN role ON department_id = department.id
-  INNER JOIN employee ON role_id = role.id
+  INNER JOIN roles ON department_id = department.id
+  INNER JOIN employee ON roles_id = roles.id
   WHERE department.id = ? 
   `;
   db.query(sql, params, (err, num) => {
@@ -115,22 +115,7 @@ router.get(`/employee/:id`, (req, res) => {
   });
 });
 
-//add employee to database
-router.post('/employee', ({ body }, res) => {
-  const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
-  VALUES (?,?,?,?)`;
-  const params = [body.first_name, body.last_name, body.role_id, body.manager_id];
-  db.query(sql, params, (err, result) => {
-    if (err) {
-      res.status(400).json({ error: err.message });
-      return;
-    }
-    res.json({
-      message: 'Successfully added candidate!',
-      data: body
-    });
-  });
-});
+
 
 //delete employee
 router.delete('/employee/:id', (req, res) => {
@@ -156,9 +141,9 @@ router.delete('/employee/:id', (req, res) => {
 //update employees role 
 router.put(`/employee/:id`, ({body}, res) => {
   const sql = `UPDATE employee
-  SET role_id = ?
+  SET roles_id = ?
   WHERE id = ?`;
-  const params = [body.role_id, body.id];
+  const params = [body.roles_id, body.id];
   db.query(sql, params, (err, results) => {
     if (err) {
       res.status(500).json({ error: err.message });
