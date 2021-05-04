@@ -6,14 +6,13 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 const db = require('./db/connection');
-const { response } = require('express');
-
 
 
 //prompt functions
 
 //presented with choices: view all departments, view all roles, view all employees,
 //add department, add role, add employee, update employee role
+
 const mainMenu = () => {
   return inquirer.prompt([
     {
@@ -22,7 +21,7 @@ const mainMenu = () => {
       name: 'selection',
       choices: ['View all the departments in my business.', 'View all the roles in the departments.', 'View all my employees.',
         'I would like to add a new department.', 'Add a new role please.', 'How about we create a new employee?', 'May I change an employee role, please?',
-        'I am all done for now, thank you.']
+        'Let`s update a employee`s manager.', 'View employees by their manager.', 'View employees by their departments.', 'If you need to delete an employee, a department, or a job title, select this option.', 'I am all done for now, thank you.']
     }
   ])
     .then(answer => {
@@ -46,11 +45,23 @@ const mainMenu = () => {
           addEmployee();
           break;
         case 'May I change an employee role, please?':
-          console.log('change employee role');
+          updateRole();
+          break;
+        case 'Let`s update a employee`s manager.':
+          updateManager();
+          break;
+        case 'View employees by their manager.':
+          viewByManager();
+          break;
+        case 'View employees by their departments.':
+          viewByDepartment();
+          break;
+        case 'If you need to delete an employee, a department, or a job title, select this option.':
+          deleteFunctions();
           break;
         case 'I am all done for now, thank you.':
-          console.log('exit');
-          break;
+          console.log('\n','Goodbye and thank you for using this application.', '\n');
+          process.exit();
       }
     })
 }
@@ -58,13 +69,13 @@ const mainMenu = () => {
 
 //view all departments, formatted table with department names and ids
 const viewDept = () => {
-  const sql = `SELECT department.id AS Department_ID, department.name AS Department_Name FROM department`
+  const sql = `SELECT department.id AS Department_ID, department.name AS Department_Name FROM department`;
   db.query(sql, (err, rows) => {
     if (err) {
       console.log(err);
       return;
     }
-    console.table(rows);
+    console.table('\n', rows);
     mainMenu();
     return
   });
@@ -80,7 +91,7 @@ const viewRoles = () => {
       console.log(err);
       return;
     }
-    console.table(rows);
+    console.table('\n', rows, '\n');
     mainMenu();
   });
 };
@@ -98,10 +109,9 @@ const viewEmployees = () => {
       console.log(err);
       return;
     }
-    console.table(res);
-    return;
+    console.table('\n', res, '\n');
+    mainMenu();
   });
-  mainMenu();
 };
 
 
@@ -211,40 +221,32 @@ const addEmployee = () => {
   //employee array to select a employee manager from
   let employeeArr = [];
   //database query to get employee id and name
-  db.query(`SELECT CONCAT(employee.id, ' ',employee.first_name, ' ',employee.last_name) AS 'Employee_ID' FROM employee;`,
+  db.query(`SELECT employee.id, CONCAT(employee.first_name, ' ',employee.last_name) AS 'Employee_ID' FROM employee;`,
     (err, res) => {
       if (err) {
         console.log(err);
       }
-
       res = Object.values(JSON.parse(JSON.stringify(res)));
-      //add option to have no manager
-      res.push(
-        {
-          Employee_ID: '0 No Manager'
-        }
-      );
       //push all employees to array
       for (i = 0; i < res.length; i++) {
         res[i].Employee_ID;
         JSON.stringify(res[i].Employee_ID);
         employeeArr.push(res[i].Employee_ID);
       }
-
+      employeeArr.push('No Manager');
       //for role selection
       let employeeRoleArr = [];
-      db.query(`SELECT CONCAT(roles.id, ' ',roles.title) AS 'Employee_Role FROM roles;'`,
+      db.query(`SELECT roles.id, roles.title FROM roles;`,
         (err, ans) => {
           if (err) {
             console.log(err);
           }
           ans = Object.values(JSON.parse(JSON.stringify(ans)));
-          for (j = 0; j < ans.length; j++){
-            ans[j].Employee_Role;
-            JSON.stringify(ans[j].Employee_Role);
-            employeeRoleArr.push(ans[j].Employee_Role);
+          for (j = 0; j < ans.length; j++) {
+            ans[j].title;
+            JSON.stringify(ans[j].title);
+            employeeRoleArr.push(ans[j].title);
           }
-          console.log(employeeRoleArr);
           inquirer.prompt([
             {
               type: 'input',
@@ -273,9 +275,10 @@ const addEmployee = () => {
               }
             },
             {
-              type: 'input',
-              message: 'Please choose a role for your employee by selecting a role id number.',
-              name: 'role_id',
+              type: 'list',
+              message: 'Please choose a role for your employee.',
+              name: 'roles_id',
+              choices: employeeRoleArr,
               validate: nameInput => {
                 if (nameInput) {
                   return true;
@@ -302,33 +305,471 @@ const addEmployee = () => {
             }
 
           ]).then(body => {
-            body.manager_id = body.manager_id.charAt(0);
-            if (body.manager_id = '0') {
-              body.manager_id = 'null';
+            if (body.manager_id === 'No Manager') {
+              body.manager_id = 0;
             }
-            //         const sql = `INSERT INTO employee (first_name, last_name, role_id, manager_id)
-            // VALUES (?,?,?,?)`;
-            //         const params = [body.first_name, body.last_name, body.role_id, body.manager_id];
-            //         db.query(sql, params, (err, result) => {
-            //           if (err) {
-            //             console.log(err);
-            //             return;
-            //           }
-            //           viewEmployees();
-            //         });
+            for (j = 0; j < res.length; j++) {
+              if (body.manager_id === res[j].Employee_ID) {
+                body.manager_id = res[j].id;
+              }
+            }
+            console.log(body.manager_id);
+            
+
+            for (i = 0; i < ans.length; i++) {
+              if (body.roles_id === ans[i].title) {
+                body.roles_id = ans[i].id
+              }
+            }
+
+            const sql = `INSERT INTO employee (first_name, last_name, roles_id, manager_id)
+            VALUES (?,?,?,?)`;
+            const params = [body.first_name, body.last_name, body.roles_id, body.manager_id];
+            db.query(sql, params, (err, result) => {
+              if (err) {
+                console.log(err);
+                return;
+              }
+              viewEmployees();
+            });
           })
         })
     })
 };
 
+//update employee role, prompted to enter the employee’s first name, 
+//last name, role, and manager and that employee is added to the database
+//update employees role 
+const updateRole = () => {
+  let employeeArr = [];
+  //database query to get employee id and name
+  db.query(`SELECT employee.id, CONCAT(employee.first_name, ' ',employee.last_name) AS 'Employee_Name' FROM employee;`,
+    (err, res) => {
+      if (err) {
+        console.log(err);
+      }
 
 
+      res = Object.values(JSON.parse(JSON.stringify(res)));
+      //push all employees to array
+      for (i = 0; i < res.length; i++) {
+        res[i].Employee_Name;
+        JSON.stringify(res[i].Employee_Name);
+        employeeArr.push(res[i].Employee_Name);
+      }
+
+      let employeeRoleArr = [];
+      db.query(`SELECT roles.id, roles.title FROM roles;`,
+        (err, ans) => {
+          if (err) {
+            console.log(err);
+          }
+          ans = Object.values(JSON.parse(JSON.stringify(ans)));
+          for (j = 0; j < ans.length; j++) {
+            ans[j].title;
+            JSON.stringify(ans[j].title);
+            employeeRoleArr.push(ans[j].title);
+          }
+          inquirer.prompt([
+            {
+              type: 'list',
+              message: 'Which employee`s role would you like to update?',
+              choices: employeeArr,
+              name: 'id',
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please select an employee.');
+                  return false;
+                }
+              }
+            },
+            {
+              type: 'list',
+              message: 'Please select a new role for the employee.',
+              name: 'roles_id',
+              choices: employeeRoleArr,
+              validate: nameInput => {
+                if (nameInput) {
+                  return true;
+                } else {
+                  console.log('Please select a role for the employee.');
+                  return false;
+                }
+              }
+            }
+          ]).then(body => {
+
+            for (j = 0; j < res.length; j++) {
+              if (body.id === res[j].Employee_Name) {
+                body.id = res[j].id;
+              }
+            }
+
+            for (k = 0; k < ans.length; k++) {
+              if (body.roles_id === ans[k].title) {
+                body.roles_id = ans[k].id;
+              }
+            }
+
+            const sql = `UPDATE employee
+            SET roles_id = ?
+            WHERE id = ?`;
+            const params = [body.roles_id, body.id];
+            db.query(sql, params, (err, results) => {
+              if (err) {
+                console.log(err);
+                return;
+              }
+              viewEmployees();
+            });
+          })
+        })
+    })
+}
+
+//update employee manager
+const updateManager = () => {
+
+  let manageArr = [];
+  db.query(`SELECT employee.id, CONCAT(employee.first_name, ' ',employee.last_name) AS 'Employee_Name' FROM employee;`,
+    (err, res) => {
+      if (err) {
+        console.log(err);
+        return;
+      }
+
+      res = Object.values(JSON.parse(JSON.stringify(res)));
+
+      for (i = 0; i < res.length; i++) {
+        JSON.stringify(res[i].Employee_Name);
+        manageArr.push(res[i].Employee_Name);
+      }
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'employee_id',
+          message: 'Please select the employee who is under new management.',
+          choices: manageArr,
+          validate: input => {
+            if (input) {
+              return true;
+            } else {
+              return false;
+            }
+          }
+        },
+        {
+          type: 'list',
+          name: 'manager_id',
+          message: 'Please select the new manager.',
+          choices: manageArr,
+          validate: input => {
+            if (input) {
+              return true;
+            } else {
+              return false;
+            }
+          }
+        }
+      ]).then(body => {
+        const sql = `UPDATE employee
+  SET manager_id =?
+  WHERE id = ?`;
+        for (j = 0; j < res.length; j++) {
+          if (body.manager_id === res[j].Employee_Name) {
+            body.manager_id = res[j].id;
+          }
+        }
+        for (k = 0; k < res.length; k++) {
+          if (body.employee_id === res[k].Employee_Name) {
+            body.employee_id = res[k].id;
+          }
+        }
+        console.log(body.manager_id);
+        console.log(body.employee_id);
+        const params = [body.manager_id, body.employee_id];
+        db.query(sql, params, (err, results) => {
+          if (err) {
+            console.log(err);
+          } else {
+            viewEmployees();
+          }
+        })
+      })
+    })
+}
+
+//view employee by manager
+const viewByManager = () => {
+  let managerArray = [];
+  db.query(`SELECT employee.id, CONCAT(employee.first_name, ' ',employee.last_name) AS 'Employee_ID' FROM employee;`,
+    (err, res) => {
+      if (err) {
+        console.log(err);
+      }
+      res = Object.values(JSON.parse(JSON.stringify(res)));
+      //push all employees to array
+      for (i = 0; i < res.length; i++) {
+        res[i].Employee_ID;
+        JSON.stringify(res[i].Employee_ID);
+        managerArray.push(res[i].Employee_ID);
+      }
+      inquirer.prompt([
+        {
+          type: 'list',
+          name: 'manager_name',
+          message: 'Which manager`s employees would you like to view?',
+          choices: managerArray,
+          validate: input => {
+            if (input) {
+              return true;
+            } else {
+              return false;
+            }
+          }
+        }
+      ]).then(body => {
+        for (j = 0; j < res.length; j++) {
+          if (body.manager_name === res[j].Employee_ID) {
+            body.id = res[j].id;
+          }
+        }
+        let params = [body.id];
+        const sql = `SELECT CONCAT(employee.first_name, ' ', employee.last_name) AS Employees FROM employee WHERE employee.manager_id = ?`;
+        db.query(sql, params, (err, rows) => {
+          if (err) {
+            console.log(err);
+          }
+          console.table('\n', rows, '\n');
+          mainMenu();
+        });
+      })
+    })
+}
+
+//view employee by department
+//view total budget of a department
+const viewByDepartment = () => {
+  let deptArray = [];
+  let sql = `SELECT department.id , department.name FROM department`;
+  db.query(sql, (err, res) => {
+    if (err) {
+      console.log(err)
+    }
+    res = Object.values(JSON.parse(JSON.stringify(res)));
+    //push all employees to array
+    for (i = 0; i < res.length; i++) {
+      res[i].Employee_ID;
+      JSON.stringify(res[i].name);
+      deptArray.push(res[i].name);
+    }
+    inquirer.prompt([
+      {
+        type: 'list',
+        name: 'dept',
+        message: 'Which department would you like to view?',
+        choices: deptArray,
+        validate: input => {
+          if (input) {
+            return true;
+          } else {
+            return false;
+          }
+        }
+      }
+    ]).then(body => {
+      for (i = 0; i < res.length; i++) {
+        if (body.dept === res[i].name) {
+          body.id = res[i].id;
+        }
+      }
+      params = body.id;
+      let sqlTwo = `SELECT CONCAT(employee.first_name,' ', employee.last_name) AS 'Employee',  department.name AS 'Department',
+  roles.title AS 'Title' FROM employee INNER JOIN roles ON roles.id = employee.roles_id
+  INNER JOIN department ON department.id = roles.department_id WHERE department.id = ?`;
+      db.query(sqlTwo, params, (err, res) => {
+        if (err) {
+          console.log(err);
+        }
+        console.table('\n', res, '\n');
+        inquirer.prompt([
+          {
+            type: 'confirm',
+            name: 'budget',
+            message: 'Would you like to see a department budget?'
+          }
+        ]).then(answer => {
+          if (!answer.budget) {
+            mainMenu();
+          } else {
+            let sqlThree = `SELECT department.id,
+              roles.salary, employee.roles_id, roles.department_id
+              FROM department
+              INNER JOIN roles ON department_id = department.id
+              INNER JOIN employee ON roles_id = roles.id
+              WHERE department.id = ?`;
+            db.query(sqlThree, params, (err, num) => {
+              if (err) {
+                console.log(err)
+              } else {
+                let budget = 0;
+                for (let i = 0; i < num.length; i++) {
+                  budget += parseInt(num[i].salary);
+                }
+                console.table('\n', num, '\n');
+                console.log('\n','The current budget is:' + budget, '\n');
+                mainMenu();
+              }
+            })
+          }
+        })
+      })
+    })
+  })
+}
+
+const deleteFunctions = () => {
+  let employeeArr = [];
+  let departmentArr = [];
+  let roleArr = [];
+
+  sqlEmployee = `SELECT employee.id, CONCAT(employee.first_name, ' ', employee.last_name) AS 'Employee' FROM employee;`;
+  db.query(sqlEmployee, (err, resEmployee) => {
+    if (err) {
+      console.log(err);
+    }
+    resEmployee = Object.values(JSON.parse(JSON.stringify(resEmployee)));
+    for (i = 0; i < resEmployee.length; i++) {
+      resEmployee[i].Employee;
+      JSON.stringify(resEmployee[i].Employee);
+      employeeArr.push(resEmployee[i].Employee);
+    }
+    sqlDept = `SELECT department.id, department.name AS 'Department' FROM department;`;
+    db.query(sqlDept, (err, resDept) => {
+      if (err) {
+        console.log(err);
+      }
+
+      resDept = Object.values(JSON.parse(JSON.stringify(resDept)));
+      for (j = 0; j < resDept.length; j++) {
+        resDept[j].Department;
+        JSON.stringify(resDept[j].Department);
+        departmentArr.push(resDept[j].Department);
+      }
+      sqlRole = `SELECT roles.id, roles.title AS 'Job_Title' FROM roles;`;
+      db.query(sqlRole, (err, resRole) => {
+        if (err) {
+          console.log(err);
+        }
+        resRole = Object.values(JSON.parse(JSON.stringify(resRole)));
+        for (k = 0; k < resRole.length; k++) {
+          resRole[k].Job_Title;
+          JSON.stringify(resRole[k].Job_Title);
+          roleArr.push(resRole[k].Job_Title);
+        }
+
+        inquirer.prompt([
+          {
+            type: 'list',
+            name: 'choice',
+            message: 'What would you like to delete today?',
+            choices: ['Employee', 'Department', 'Job Role']
+          }
+        ]).then(answer => {
+          switch (answer.choice) {
+            case 'Employee':
+              inquirer.prompt([
+                {
+                  type: 'list',
+                  name: 'employee',
+                  message: 'Please select a employee to delete.',
+                  choices: employeeArr
+                }
+              ]).then(answer => {
+                for (i = 0; i < resEmployee.length; i++) {
+                  if (answer.employee === resEmployee[i].Employee) {
+                    answer.id = resEmployee[i].id;
+                  }
+                }
+                params = [answer.id];
+                db.query(`DELETE FROM employee WHERE id = ?`, params, (err, resEmp) => {
+                  if (err) {
+                    console.log(err);
+                  } else {
+                    console.log('\n','Successfully deleted ' + answer.employee, '\n');
+                    mainMenu();
+                  }
+                })
+              })
+              break;
+            case 'Department':
+              inquirer.prompt([
+                {
+                  type: 'list',
+                  name: 'department',
+                  message: 'Please select a department to delete.',
+                  choices: departmentArr
+                }
+              ]).then(answer => {
+                for (j = 0; j < resDept.length; j++) {
+                  if (answer.department === resDept[j].Department) {
+                    answer.id = resDept[j].id;
+                  }
+                }
+                params = [answer.id];
+                db.query(`DELETE FROM department WHERE id = ?`, params, (err, resEmp) => {
+                  if (err) {
+                    console.log(err);
+                  } else {
+                    console.log('\n','Successfully deleted ' + answer.department, '\n');
+                    mainMenu();
+                  }
+                })
+              })
+              break;
+            case 'Job Role':
+              inquirer.prompt([
+                {
+                  type: 'list',
+                  name: 'roles',
+                  message: 'Please select a role to delete.',
+                  choices: roleArr
+                }
+              ]).then(answer => {
+                for (k = 0; k < resRole.length; k++) {
+                  if (answer.roles === resRole[k].Job_Title) {
+                    answer.id = resRole[k].id;
+                  }
+                }
+                params = [answer.id];
+                db.query(`DELETE FROM roles WHERE id = ?`, params, (err, resEmp) => {
+                  if (err) {
+                    console.log(err);
+                  } else {
+                    console.log('\n','Successfully deleted ' + answer.roles, '\n');
+                    mainMenu();
+                  }
+                })
+              })
+              break;
+          }
+
+        })
+
+      })
+
+    })
+
+  })
+}
 
 
 
 
 mainMenu();
-module.exports = { mainMenu, viewDept };
+module.exports = mainMenu;
 
 
 
@@ -341,9 +782,7 @@ module.exports = { mainMenu, viewDept };
 
 
 
-//update employee role, prompted to enter the employee’s first name, 
-//last name, role, and manager and that employee is added to the database
 
-//bonus: update employee manager, view employee by manager,
-//view employee by department, delete department, role, and employee.
-//view total budget of a department.
+
+//bonus: , ,
+//, delete department, role, and employee.

@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('./db/connection');
-const apiRoutes = require('./routes/apiRoutes/server');
+const mainMenu = require('./app');
 
 
 
@@ -11,7 +11,7 @@ const app = express();
 app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 
-app.use('/api', apiRoutes);
+app.use('/api', mainMenu);
 
 // Default response for any other request (Not Found) (aka 'Catchall')
 app.use((req, res) => {
